@@ -22,19 +22,15 @@ pub struct Cfg {
 
 impl Cfg {
     pub fn linear(v: Vec<Bb>) -> Cfg {
-        let mut c = Cfg {
+        let e = v.iter()
+            .tuple_windows()
+            .map(|(ref x, ref y)| (x.addr().unwrap(), y.addr().unwrap()))
+            .collect();
+        Cfg {
             verts: v.into_iter()
                 .map(|x| (x.stmts[0].addr, Node::new(x)))
                 .collect(),
-            edges: HashMap::new(),
-        };
-        c.connect();
-        c
-    }
-
-    pub fn connect(&mut self) {
-        for (&f, &t) in self.verts.keys().tuple_windows() {
-            self.edges.insert(f, t);
+            edges: e,
         }
     }
 
