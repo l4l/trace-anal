@@ -5,5 +5,5 @@ authors = ["Kitsu <mail@kitsu.me>"]
 
 [dependencies]
 simple_json = "0.2.3"
-itertools = "0.7.3"
+itertools = "0.7.4"
 dot = "0.1.2"

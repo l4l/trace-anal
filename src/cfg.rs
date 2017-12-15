@@ -17,14 +17,16 @@ impl Node {
 #[derive(Debug)]
 pub struct Cfg {
     pub verts: BTreeMap<usize, Node>,
-    pub edges: HashMap<usize, usize>,
+    pub edges: HashMap<usize, Vec<usize>>,
 }
 
 impl Cfg {
     pub fn linear(v: Vec<Bb>) -> Cfg {
         let e = v.iter()
             .tuple_windows()
-            .map(|(ref x, ref y)| (x.addr().unwrap(), y.addr().unwrap()))
+            .map(|(ref x, ref y)| {
+                (x.addr().unwrap(), vec![y.addr().unwrap()])
+            })
             .collect();
         Cfg {
             verts: v.into_iter()
@@ -109,7 +111,7 @@ mod test {
             assert_eq!(v, c);
         }
         for (ref c1, ref c2) in (0..3).map(|x| (4 * x, 4 * (x + 1))) {
-            assert_eq!(cfg.edges.get(c1).unwrap(), c2);
+            assert_eq!(&cfg.edges[c1][0], c2);
         }
     }
 

@@ -3,6 +3,7 @@ extern crate dot;
 use cfg::Cfg;
 use std::borrow::Cow;
 use std::io::Write;
+use std::iter;
 
 use itertools::Itertools;
 
@@ -39,7 +40,15 @@ impl<'a> dot::GraphWalk<'a, Node, Edge> for Cfg {
     }
 
     fn edges(&'a self) -> dot::Edges<'a, Edge> {
-        Cow::Owned(self.edges.iter().map(|(&x, &y)| (x, y)).collect())
+        Cow::Owned(
+            self.edges
+                .iter()
+                .flat_map(|(x, ref y)| {
+                    y.iter().cloned().cartesian_product(iter::once(x))
+                })
+                .map(|(x, &y)| (x, y))
+                .collect(),
+        )
     }
 
     fn source(&self, e: &Edge) -> Node {
