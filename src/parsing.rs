@@ -1,4 +1,4 @@
-pub use trace::ForeignInfo;
+pub use base::ForeignInfo;
 pub use trace::TraceStmt;
 
 extern crate simple_json;

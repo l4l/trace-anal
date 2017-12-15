@@ -7,6 +7,7 @@ pub use cfg::Cfg;
 mod trace;
 pub use trace::*;
 mod graph;
+mod base;
 
 use std::env;
 use std::fs::File;

@@ -1,6 +1,7 @@
 extern crate dot;
 
-use cfg::Cfg;
+use cfg::{Cfg, NodeBase};
+use base::Addressable;
 use std::borrow::Cow;
 use std::io::Write;
 use std::iter;
@@ -22,14 +23,19 @@ impl<'a> dot::Labeller<'a, Node, Edge> for Cfg {
     }
 
     fn node_id(&'a self, n: &Node) -> dot::Id<'a> {
-        dot::Id::new(format!("MAG{:016}MAG", self.verts[n].bb.addr().unwrap())).unwrap()
+        dot::Id::new(format!("MAG{:016}MAG", self.verts[n].addr().unwrap())).unwrap()
     }
 
     fn node_label<'b>(&'b self, n: &Node) -> dot::LabelText<'b> {
-        let mut s = format!("{:016}\n", self.verts[n].bb.addr().unwrap());
-        s.push_str(&self.verts[n].bb.stmts.iter().map(|ref x| &x.text).join(
-            "\n",
-        ));
+        let ref v = self.verts[n];
+        let s = match v.node {
+            NodeBase::Block(ref b) => {
+                let mut s = format!("{:016}\n", b.addr().unwrap());
+                s.push_str(&b.instrs.iter().map(|ref x| &x.text).join("\n"));
+                s
+            }
+            NodeBase::Foreign(ref f) => format!("{}\n", f.foreign_name),
+        };
         dot::LabelText::LabelStr(Cow::Owned(s))
     }
 }
@@ -44,9 +50,9 @@ impl<'a> dot::GraphWalk<'a, Node, Edge> for Cfg {
             self.edges
                 .iter()
                 .flat_map(|(x, ref y)| {
-                    y.iter().cloned().cartesian_product(iter::once(x))
+                    iter::once(x).cartesian_product(y.iter().cloned())
                 })
-                .map(|(x, &y)| (x, y))
+                .map(|(&x, y)| (x, y))
                 .collect(),
         )
     }

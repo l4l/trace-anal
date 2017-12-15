@@ -1,48 +1,84 @@
 use itertools::Itertools;
 use std::collections::{HashMap, BTreeMap};
 use trace::Bb;
+use base::{Addressable, Block, ForeignInfo};
 
 #[derive(Debug)]
-pub struct Node {
-    pub was: bool,
-    pub bb: Bb,
+pub enum NodeBase<B, F> {
+    Block(B),
+    Foreign(F),
 }
 
-impl Node {
-    fn new(b: Bb) -> Node {
-        Node { was: false, bb: b }
+pub type Node = NodeBase<Block, ForeignInfo>;
+
+#[derive(Debug)]
+pub struct VisitingNode {
+    pub was: bool,
+    pub node: Node,
+}
+
+impl VisitingNode {
+    fn from_node(n: Node) -> VisitingNode {
+        VisitingNode {
+            was: false,
+            node: n,
+        }
+    }
+
+    fn visit(mut self) -> VisitingNode {
+        self.was = true;
+        self
+    }
+}
+
+impl Addressable for VisitingNode {
+    fn addr(&self) -> Option<usize> {
+        match self.node {
+            NodeBase::Block(ref b) => b.addr(),
+            NodeBase::Foreign(ref f) => f.addr(),
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct Cfg {
-    pub verts: BTreeMap<usize, Node>,
+    pub verts: BTreeMap<usize, VisitingNode>,
     pub edges: HashMap<usize, Vec<usize>>,
 }
 
 impl Cfg {
     pub fn linear(v: Vec<Bb>) -> Cfg {
-        let e = v.iter()
-            .tuple_windows()
-            .map(|(ref x, ref y)| {
-                (x.addr().unwrap(), vec![y.addr().unwrap()])
+        let nodes: Vec<(usize, VisitingNode)> = v.into_iter()
+            .fold(Vec::new(), |mut acc, x| {
+                let (b, f) = x.separate();
+                println!("blk: {}", b.addr().unwrap());
+                acc.push((b.addr().unwrap(), NodeBase::Block(b)));
+                if let Some(f) = f {
+                    println!("for: {}", f.foreign_name);
+                    acc.push((f.addr().unwrap(), NodeBase::Foreign(f)));
+                }
+                acc
             })
+            .into_iter()
+            .map(|(x, y)| (x, VisitingNode::from_node(y)))
+            .collect();
+        let edges = nodes
+            .iter()
+            .map(|&(x, _)| x)
+            .tuple_windows()
+            .map(|(ref x, ref y)| (*x, vec![*y]))
             .collect();
         Cfg {
-            verts: v.into_iter()
-                .map(|x| (x.stmts[0].addr, Node::new(x)))
-                .collect(),
-            edges: e,
+            verts: nodes.into_iter().collect(),
+            edges: edges,
         }
     }
 
-    fn insert_block(&mut self, block: Bb) {
+    fn insert_block(&mut self, block: Block) {
+        let addr = block.addr().unwrap();
         self.verts.insert(
-            block.addr().unwrap(),
-            Node {
-                was: true,
-                bb: block,
-            },
+            addr,
+            VisitingNode::from_node(NodeBase::Block(block)).visit(),
         );
     }
 
@@ -53,8 +89,12 @@ impl Cfg {
             .find(|&(&k, _)| k <= addr)
             .ok_or(())?
             .0;
-        let prev = self.verts.remove(&t).unwrap();
-        match prev.bb.split(addr) {
+        let prev = self.verts.remove(&t).unwrap().node;
+        let prev = match prev {
+            NodeBase::Block(bb) => bb,
+            _ => return Err(()),
+        };
+        match prev.split(addr) {
             Ok((b1, b2)) => {
                 self.insert_block(b1);
                 self.insert_block(b2);

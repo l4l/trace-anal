@@ -1,14 +1,6 @@
-use itertools::Itertools;
+use base::{Addressable, Block, Instr, ForeignInfo};
 
-#[derive(Debug)]
-pub struct ForeignInfo {
-    /// Address of the first instr after foreign branch
-    pub foreign_addr: usize,
-    /// Name of the foreign block
-    pub foreign_name: String,
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TraceStmt {
     /// Address of the instr
     pub addr: usize,
@@ -22,7 +14,7 @@ pub struct TraceStmt {
     pub foreign: Option<ForeignInfo>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Bb {
     pub stmts: Vec<TraceStmt>,
 }
@@ -43,25 +35,33 @@ impl Bb {
         tmp.into_iter().map(|x| Bb { stmts: x }).collect()
     }
 
-    pub fn split(mut self, addr: usize) -> Result<(Bb, Bb), Bb> {
-        match self.stmts.iter().position(|ref x| x.addr == addr) {
-            Some(i) => {
-                let l = self.stmts.drain(0..i).collect();
-                let r = self.stmts;
-                Ok((Bb { stmts: l }, Bb { stmts: r }))
+    pub fn separate(self) -> (Block, Option<ForeignInfo>) {
+        let f = self.foreign_info();
+        let i = self.stmts.into_iter().map(|x| {
+            Instr {
+                addr: x.addr,
+                hex: x.hex,
+                text: x.text,
+                isbr: x.isbr,
             }
-            None => Err(Bb { stmts: self.stmts }),
-        }
+        });
+        (Block { instrs: i.collect() }, f)
     }
 
-    pub fn addr(&self) -> Option<usize> {
+    pub fn foreign_info(&self) -> Option<ForeignInfo> {
+        self.stmts.last()?.foreign.clone()
+    }
+}
+
+impl Addressable for Bb {
+    fn addr(&self) -> Option<usize> {
         self.stmts.iter().nth(0).map(|x| x.addr)
     }
 }
 
 #[cfg(test)]
 pub mod test {
-    use trace::{TraceStmt, Bb};
+    use trace::{TraceStmt, Bb, Addressable};
     use parsing::test::traces;
 
     #[macro_export]
@@ -85,18 +85,6 @@ pub mod test {
         assert_eq!(bbs[1].stmts.len(), 4);
     }
 
-    #[test]
-    fn split() {
-        let block = Bb { stmts: (10..18).map(|x| new_trace!(x)).collect() };
-        let (l, r) = block.split(14).unwrap();
-        let check = |bb: &Bb, rng| {
-            bb.stmts.iter().map(|ref x| x.addr).zip(rng).any(
-                |(x, y)| x == y,
-            )
-        };
-        check(&l, 10..14);
-        check(&r, 14..18);
-    }
 
     #[test]
     fn addr() {
