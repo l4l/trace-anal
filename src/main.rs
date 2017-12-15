@@ -1,3 +1,5 @@
+extern crate itertools;
+
 #[macro_use]
 mod parsing;
 mod cfg;

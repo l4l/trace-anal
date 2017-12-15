@@ -7,6 +7,10 @@ use self::simple_json::Number::Unsigned;
 
 use std::collections::HashMap;
 
+macro_rules! get(
+    ($e:expr) => (match $e { Some(e) => e, None => return None })
+);
+
 macro_rules! parse {
     ($e:expr, $name:expr, $opt:expr, $en:ident :: $t:ident) => (
         if let Some(& $en::$t(ref val)) = $e.get($name) {
@@ -31,6 +35,13 @@ pub fn parse_trace(s: &str) -> Vec<TraceStmt> {
     parse_stmts(stmts)
 }
 
+fn parse_addr(object: &HashMap<String, Json>, name: &str) -> Option<usize> {
+    match *parse!(object, name, None, Json::Number) {
+        Unsigned(v) => Some(v as usize),
+        _ => None,
+    }
+}
+
 fn parse_stmts(stmts: Vec<Json>) -> Vec<TraceStmt> {
     let mut parsed: Vec<TraceStmt> = Vec::new();
     for stmt in stmts {
@@ -48,14 +59,9 @@ fn parse_stmts(stmts: Vec<Json>) -> Vec<TraceStmt> {
 impl ForeignInfo {
     fn new(object: &HashMap<String, Json>) -> Option<ForeignInfo> {
         let _ = parse!(object, "isForeignBranch", None, Json::Boolean);
-        let addr =
-            if let Unsigned(v) = *parse!(object, "foreignTargetAddress", None, Json::Number) {
-                v
-            } else {
-                return None;
-            };
+        let addr = parse_addr(object, "foreignTargetAddress");
         Some(ForeignInfo {
-            foreign_addr: addr,
+            foreign_addr: get!(addr),
             foreign_name: String::from(
                 parse!(object, "foreignTargetName", None, Json::String).as_str(),
             ),
@@ -65,13 +71,9 @@ impl ForeignInfo {
 
 impl TraceStmt {
     fn new(object: &HashMap<String, Json>) -> Option<TraceStmt> {
-        let addr = if let Unsigned(v) = *parse!(object, "address", None, Json::Number) {
-            v
-        } else {
-            return None;
-        };
+        let addr = parse_addr(object, "address");
         Some(TraceStmt {
-            addr: addr,
+            addr: get!(addr),
             hex: String::from(parse!(object, "hexDump", None, Json::String).as_str()),
             text: String::from(parse!(object, "text", None, Json::String).as_str()),
             isbr: *parse!(object, "isBranch", Some(false), Json::Boolean),
