@@ -57,6 +57,7 @@ impl Cfg {
         let mut edges: Vec<(usize, usize)> =
             nodes.iter().map(|&(x, _)| x).tuple_windows().collect();
         edges.sort_by(|&(x, _), &(y, _)| x.cmp(&y));
+        edges.dedup();
         // Group edges by the source vert
         //  [0 -> 1, 0 -> 2, 1 -> 2, 3 -> 4]
         // is becoming
@@ -129,9 +130,26 @@ impl Cfg {
             _ => return Err(()),
         };
         match prev.split(addr) {
-            Ok((b1, b2)) => {
-                self.insert_block(b1);
-                self.insert_block(b2);
+            // A -> B {stmts1, stmts2} -> C
+            // =>
+            // A -> block1 {stmts1} -> block2 {stmts2} -> C
+            Ok((block1, block2)) => {
+                let (b1, b2) = (block1.addr().unwrap(), block2.addr().unwrap());
+                self.insert_block(block1);
+                self.insert_block(block2);
+
+                let set = self.edges.remove(&b1).unwrap();
+                // b1 -> b2
+                self.edges.insert(b1, HashSet::new());
+                self.edges.get_mut(&b1).ok_or(())?.insert(b2);
+
+                // B -> C => b2 -> C
+                let old = if let Some(old) = self.edges.get(&b2) {
+                    old.clone()
+                } else {
+                    HashSet::new()
+                };
+                self.edges.insert(b2, old.union(&set).cloned().collect());
             }
             Err(b) => self.insert_block(b),
         }
@@ -166,6 +184,8 @@ impl Cfg {
 
 #[cfg(test)]
 mod test {
+    use itertools::Itertools;
+    use std::collections::HashSet;
     use trace::{TraceStmt, Bb};
     use cfg::Cfg;
 
@@ -223,8 +243,43 @@ mod test {
         let sz = cfg.verts.len();
         assert!(cfg.split(5).is_ok());
         assert_eq!(cfg.verts.len(), sz + 1);
-        for v in vec![0, 4, 5, 8, 12] {
+        let vec = vec![0, 4, 5, 8, 12];
+        for v in vec.iter() {
             assert!(cfg.verts.contains_key(&v));
+        }
+        assert_eq!(4, cfg.edges.len());
+        for (c1, c2) in vec.iter().tuple_windows() {
+            assert!(cfg.edges[c1].contains(c2));
+        }
+    }
+
+    #[test]
+    fn split_with_loop() {
+        let mut cfg = make_base_cfg();
+        for (&v, c) in cfg.verts.keys().zip((0..4).map(|x| 4 * x)) {
+            assert_eq!(v, c);
+        }
+        // Before splitting
+        //  0 -> 4
+        //  4 -> 8,  4 -> 12
+        //  8 -> 12, 8 -> 4
+        // 12 -> 4
+        cfg.edges.get_mut(&4).unwrap().insert(12);
+        cfg.edges.get_mut(&8).unwrap().insert(4);
+        cfg.edges.insert(12, HashSet::new());
+        cfg.edges.get_mut(&12).unwrap().insert(4);
+        // After splitting
+        //  0 -> 4
+        //  4 -> 5
+        //  5 -> 8,  5 -> 12
+        //  8 -> 12, 8 -> 4
+        // 12 -> 4
+        assert!(cfg.split(5).is_ok());
+        let vec = vec![(0, 4), (4, 5), (5, 8), (5, 12), (8, 12), (8, 4), (12, 4)];
+        assert_eq!(5, cfg.edges.len());
+        for (c1, c2) in vec {
+            println!("== {} {} {:?} ==", c1, c2, cfg.edges[&c1]);
+            assert!(cfg.edges[&c1].contains(&c2));
         }
     }
 
