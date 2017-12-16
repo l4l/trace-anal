@@ -50,6 +50,10 @@ impl Block {
             None => Err(Block { instrs: self.instrs }),
         }
     }
+
+    pub fn last(&self) -> Option<usize> {
+        self.instrs.iter().last().map(|x| x.addr)
+    }
 }
 
 #[cfg(test)]

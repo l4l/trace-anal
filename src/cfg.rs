@@ -47,11 +47,11 @@ pub struct Cfg {
 }
 
 impl Cfg {
-    pub fn linear(v: Vec<Bb>) -> Cfg {
+    pub fn from_blocks(v: Vec<Bb>) -> Cfg {
         let nodes: Vec<(usize, VisitingNode)> = v.into_iter()
             .fold(Vec::new(), |mut acc, x| {
                 let (b, f) = x.separate();
-                println!("blk: {}", b.addr().unwrap());
+                println!("blk: {}..{}", b.addr().unwrap(), b.last().unwrap());
                 acc.push((b.addr().unwrap(), NodeBase::Block(b)));
                 if let Some(f) = f {
                     println!("for: {}", f.foreign_name);
@@ -84,7 +84,7 @@ impl Cfg {
                 acc[last].push(x);
                 acc
             });
-        Cfg {
+        let mut cfg = Cfg {
             verts: nodes.into_iter().collect(),
             edges: edges.into_iter().fold(HashMap::new(), |mut acc, x| {
                 for (l, r) in x {
@@ -93,7 +93,33 @@ impl Cfg {
                 }
                 acc
             }),
+        };
+        for addr in cfg.find_dups() {
+            println!("split: {:?}", addr);
+            cfg.split(addr).unwrap();
         }
+        cfg
+    }
+
+    fn find_dups(&self) -> Vec<usize> {
+        self.verts
+            .iter()
+            .filter_map(|(&x, ref y)| {
+                if x == 0 {
+                    return None;
+                }
+                if let Some(&NodeBase::Block(ref n)) =
+                    self.verts.range(..x - 1).last().map(|(&_, ref y)| &y.node)
+                {
+                    let addr = y.addr().unwrap();
+                    if let Some(s) = n.instrs.iter().find(|&x| x.addr == addr) {
+                        println!("{:?}", s);
+                        return Some(addr);
+                    }
+                }
+                None
+            })
+            .collect()
     }
 
     fn insert_block(&mut self, block: Block) {
@@ -105,12 +131,7 @@ impl Cfg {
     }
 
     pub fn split(&mut self, addr: usize) -> Result<(), ()> {
-        let t = *self.verts
-            .iter()
-            .rev()
-            .find(|&(&k, _)| k <= addr)
-            .ok_or(())?
-            .0;
+        let t = *self.verts.range(..addr).last().ok_or(())?.0;
         let prev = self.verts.remove(&t).unwrap().node;
         let prev = match prev {
             NodeBase::Block(bb) => bb,
@@ -176,7 +197,7 @@ mod test {
     ///  8  9 10 11
     /// 12 13 14 15
     fn make_base_cfg() -> Cfg {
-        Cfg::linear(
+        Cfg::from_blocks(
             (0..4)
                 .map(|x| {
                     Bb {
