@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{HashMap, BTreeMap, HashSet};
 use trace::Bb;
 use base::{Addressable, Block, ForeignInfo};
 
@@ -43,7 +43,7 @@ impl Addressable for VisitingNode {
 #[derive(Debug)]
 pub struct Cfg {
     pub verts: BTreeMap<usize, VisitingNode>,
-    pub edges: HashMap<usize, Vec<usize>>,
+    pub edges: HashMap<usize, HashSet<usize>>,
 }
 
 impl Cfg {
@@ -62,15 +62,37 @@ impl Cfg {
             .into_iter()
             .map(|(x, y)| (x, VisitingNode::from_node(y)))
             .collect();
-        let edges = nodes
-            .iter()
-            .map(|&(x, _)| x)
-            .tuple_windows()
-            .map(|(ref x, ref y)| (*x, vec![*y]))
-            .collect();
+        // Grub consequetive pairs of nodes (0,1), (1,2), ...
+        let mut edges: Vec<(usize, usize)> =
+            nodes.iter().map(|&(x, _)| x).tuple_windows().collect();
+        edges.sort_by(|&(x, _), &(y, _)| x.cmp(&y));
+        // Group edges by the source vert
+        //  [0 -> 1, 0 -> 2, 1 -> 2, 3 -> 4]
+        // is becoming
+        //  [[0 -> 1, 0 -> 2], [1 -> 2], [3 -> 4]]
+        let edges: Vec<Vec<(usize, usize)>> =
+            edges.into_iter().fold(vec![Vec::new()], |mut acc, x| {
+                let last = acc.len() - 1;
+                if if let Some(&(t, _)) = acc[last].last() {
+                    t == x.0
+                } else {
+                    false
+                }
+                {
+                    acc.push(Vec::new());
+                };
+                acc[last].push(x);
+                acc
+            });
         Cfg {
             verts: nodes.into_iter().collect(),
-            edges: edges,
+            edges: edges.into_iter().fold(HashMap::new(), |mut acc, x| {
+                for (l, r) in x {
+                    let set = acc.entry(l).or_insert(HashSet::new());
+                    set.insert(r);
+                }
+                acc
+            }),
         }
     }
 
@@ -151,7 +173,7 @@ mod test {
             assert_eq!(v, c);
         }
         for (ref c1, ref c2) in (0..3).map(|x| (4 * x, 4 * (x + 1))) {
-            assert_eq!(&cfg.edges[c1][0], c2);
+            assert!(&cfg.edges[c1].contains(c2));
         }
     }
 
