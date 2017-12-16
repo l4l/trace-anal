@@ -13,21 +13,12 @@ pub type Node = NodeBase<Block, ForeignInfo>;
 
 #[derive(Debug)]
 pub struct VisitingNode {
-    pub was: bool,
     pub node: Node,
 }
 
 impl VisitingNode {
     fn from_node(n: Node) -> VisitingNode {
-        VisitingNode {
-            was: false,
-            node: n,
-        }
-    }
-
-    fn visit(mut self) -> VisitingNode {
-        self.was = true;
-        self
+        VisitingNode { node: n }
     }
 }
 
@@ -126,7 +117,7 @@ impl Cfg {
         let addr = block.addr().unwrap();
         self.verts.insert(
             addr,
-            VisitingNode::from_node(NodeBase::Block(block)).visit(),
+            VisitingNode::from_node(NodeBase::Block(block)),
         );
     }
 
