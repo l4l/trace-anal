@@ -125,6 +125,31 @@ impl Cfg {
         }
         Ok(())
     }
+
+    /// Performs replacing blocks `mapping` key with its value
+    /// Additional redirect all the branches to the new block
+    fn merge(&mut self, mapping: HashMap<usize, usize>) {
+        for (&f, &t) in mapping.iter() {
+            println!("merge {:?} -> {:?}", f, t);
+            // Remove the corresponding vert
+            self.verts.remove(&f).unwrap();
+            // Replace edges: old -> _
+            //            to: new -> _
+            if let Some(v) = self.edges.remove(&f) {
+                self.edges.insert(t, v);
+            }
+        }
+
+        // Replace edges: _ -> old
+        //            to: _ -> new
+        for (f, t) in mapping.into_iter() {
+            for (_, v) in self.edges.iter_mut() {
+                if v.remove(&f) {
+                    v.insert(t);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -189,5 +214,14 @@ mod test {
         for v in vec![0, 4, 5, 8, 12] {
             assert!(cfg.verts.contains_key(&v));
         }
+    }
+
+    #[test]
+    fn merge() {
+        let mut cfg = make_base_cfg();
+        cfg.merge((0..1).map(|_| (4, 8)).collect());
+        println!("{}", cfg);
+        assert_eq!(cfg.verts.len(), 3);
+        assert_eq!(cfg.edges.len(), 2);
     }
 }
