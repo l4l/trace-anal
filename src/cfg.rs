@@ -42,10 +42,10 @@ impl Cfg {
         let nodes: Vec<(usize, VisitingNode)> = v.into_iter()
             .fold(Vec::new(), |mut acc, x| {
                 let (b, f) = x.separate();
-                println!("blk: {}..{}", b.addr().unwrap(), b.last().unwrap());
+                eprintln!("blk: {}..{}", b.addr().unwrap(), b.last().unwrap());
                 acc.push((b.addr().unwrap(), NodeBase::Block(b)));
                 if let Some(f) = f {
-                    println!("for: {}", f.foreign_name);
+                    eprintln!("for: {}", f.foreign_name);
                     acc.push((f.addr().unwrap(), NodeBase::Foreign(f)));
                 }
                 acc
@@ -87,7 +87,7 @@ impl Cfg {
             }),
         };
         for addr in cfg.find_dups() {
-            println!("split: {:?}", addr);
+            eprintln!("split: {:?}", addr);
             cfg.split(addr).unwrap();
         }
         cfg
@@ -105,7 +105,7 @@ impl Cfg {
                 {
                     let addr = y.addr().unwrap();
                     if let Some(s) = n.instrs.iter().find(|&x| x.addr == addr) {
-                        println!("{:?}", s);
+                        eprintln!("{:?}", s);
                         return Some(addr);
                     }
                 }
@@ -160,7 +160,7 @@ impl Cfg {
     /// Additional redirect all the branches to the new block
     fn merge(&mut self, mapping: HashMap<usize, usize>) {
         for (&f, &t) in mapping.iter() {
-            println!("merge {:?} -> {:?}", f, t);
+            eprintln!("merge {:?} -> {:?}", f, t);
             // Remove the corresponding vert
             self.verts.remove(&f).unwrap();
             // Replace edges: old -> _
@@ -278,7 +278,7 @@ mod test {
         let vec = vec![(0, 4), (4, 5), (5, 8), (5, 12), (8, 12), (8, 4), (12, 4)];
         assert_eq!(5, cfg.edges.len());
         for (c1, c2) in vec {
-            println!("== {} {} {:?} ==", c1, c2, cfg.edges[&c1]);
+            eprintln!("== {} {} {:?} ==", c1, c2, cfg.edges[&c1]);
             assert!(cfg.edges[&c1].contains(&c2));
         }
     }
@@ -287,7 +287,7 @@ mod test {
     fn merge() {
         let mut cfg = make_base_cfg();
         cfg.merge((0..1).map(|_| (4, 8)).collect());
-        println!("{}", cfg);
+        eprintln!("{}", cfg);
         assert_eq!(cfg.verts.len(), 3);
         assert_eq!(cfg.edges.len(), 2);
     }

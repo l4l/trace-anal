@@ -50,7 +50,7 @@ fn parse_stmts(stmts: Vec<Json>) -> Vec<TraceStmt> {
                 parsed.push(s);
             }
         } else {
-            println!("Err in parsing line: \'{}\'. Skipping...", stmt.to_string());
+            eprintln!("Err in parsing line: \'{}\'. Skipping...", stmt.to_string());
         }
     }
     parsed
