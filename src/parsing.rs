@@ -89,18 +89,14 @@ pub mod test {
     use std::cmp::Eq;
     impl PartialEq for TraceStmt {
         fn eq(&self, other: &TraceStmt) -> bool {
-            self.addr == other.addr &&
-            self.hex == other.hex &&
-            self.text == other.text &&
-            self.isbr == other.isbr &&
-            self.foreign == other.foreign
+            self.addr == other.addr && self.hex == other.hex && self.text == other.text &&
+                self.isbr == other.isbr && self.foreign == other.foreign
         }
     }
     impl Eq for TraceStmt {}
     impl PartialEq for ForeignInfo {
         fn eq(&self, other: &ForeignInfo) -> bool {
-            self.foreign_addr == other.foreign_addr &&
-            self.foreign_name == other.foreign_name
+            self.foreign_addr == other.foreign_addr && self.foreign_name == other.foreign_name
         }
     }
     impl Eq for ForeignInfo {}
@@ -116,66 +112,61 @@ pub mod test {
     }
 
     pub fn traces() -> Vec<TraceStmt> {
-        vec![TraceStmt{
-          addr: 4195392,
-          hex: "31ED".to_string(),
-          text: "xor ebp, ebp".to_string(),
-          isbr: false,
-          foreign: None
-        },
-        TraceStmt{
-          addr: 4195394,
-          hex: "4989D1".to_string(),
-          text: "mov r9, rdx".to_string(),
-          isbr: false,
-          foreign: None
-        },
-        TraceStmt{
-          addr: 4195397,
-          hex: "5E".to_string(),
-          text: "call 0x4195398".to_string(),
-          isbr: true,
-          foreign: None
-        },
-        TraceStmt{
-          addr: 4195398,
-          hex: "4889E2".to_string(),
-          text: "mov rdx, rsp".to_string(),
-          isbr: false,
-          foreign: None
-        },
-        TraceStmt{
-          addr: 4195401,
-          hex: "4883E4F0".to_string(),
-          text: "and rsp, 0xfffffffffffffff0".to_string(),
-          isbr: false,
-          foreign: None
-        },
-        TraceStmt{
-          addr: 4195405,
-          hex: "50".to_string(),
-          text: "push rax".to_string(),
-          isbr: false,
-          foreign: None
-        },
-        TraceStmt{
-          addr: 4195406,
-          hex: "54".to_string(),
-          text: "ret".to_string(),
-          isbr: true,
-          foreign: None
-        }]
+        vec![
+            TraceStmt {
+                addr: 4195392,
+                hex: "31ED".to_string(),
+                text: "xor ebp, ebp".to_string(),
+                isbr: false,
+                foreign: None,
+            },
+            TraceStmt {
+                addr: 4195394,
+                hex: "4989D1".to_string(),
+                text: "mov r9, rdx".to_string(),
+                isbr: false,
+                foreign: None,
+            },
+            TraceStmt {
+                addr: 4195397,
+                hex: "5E".to_string(),
+                text: "call 0x4195398".to_string(),
+                isbr: true,
+                foreign: None,
+            },
+            TraceStmt {
+                addr: 4195398,
+                hex: "4889E2".to_string(),
+                text: "mov rdx, rsp".to_string(),
+                isbr: false,
+                foreign: None,
+            },
+            TraceStmt {
+                addr: 4195401,
+                hex: "4883E4F0".to_string(),
+                text: "and rsp, 0xfffffffffffffff0".to_string(),
+                isbr: false,
+                foreign: None,
+            },
+            TraceStmt {
+                addr: 4195405,
+                hex: "50".to_string(),
+                text: "push rax".to_string(),
+                isbr: false,
+                foreign: None,
+            },
+            TraceStmt {
+                addr: 4195406,
+                hex: "54".to_string(),
+                text: "ret".to_string(),
+                isbr: true,
+                foreign: None,
+            },
+        ]
     }
 
     #[test]
     fn trace_parsing() {
-        let json = r#"[{ "address": 4195392, "hexDump": "31ED", "text": "xor ebp, ebp" },
-                       { "address": 4195394, "hexDump": "4989D1", "text": "mov r9, rdx" },
-                       { "address": 4195397, "hexDump": "5E", "text": "call 0x4195398", "isBranch": true },
-                       { "address": 4195398, "hexDump": "4889E2", "text": "mov rdx, rsp" },
-                       { "address": 4195401, "hexDump": "4883E4F0", "text": "and rsp, 0xfffffffffffffff0" },
-                       { "address": 4195405, "hexDump": "50", "text": "push rax" },
-                       { "address": 4195406, "hexDump": "54", "text": "ret", "isBranch": true }]"#;
         let trace = parse_trace(json_traces());
         for (l, r) in trace.into_iter().zip(traces()) {
             assert_eq!(l, r);
