@@ -23,14 +23,20 @@ impl<'a> dot::Labeller<'a, Node, Edge> for Cfg {
     }
 
     fn node_id(&'a self, n: &Node) -> dot::Id<'a> {
-        dot::Id::new(format!("MAG{:016}MAG", self.verts[n].addr().unwrap())).unwrap()
+        let ref v = self.verts[n];
+        dot::Id::new(match v.node {
+            NodeBase::Block(ref b) => 
+                format!("\"{:016x}\"", b.addr().unwrap()),
+            NodeBase::Foreign(ref f) => 
+                format!("\"{}\"", f.foreign_name),
+        }).unwrap()
     }
 
     fn node_label<'b>(&'b self, n: &Node) -> dot::LabelText<'b> {
         let ref v = self.verts[n];
         let s = match v.node {
             NodeBase::Block(ref b) => {
-                let mut s = format!("{:016}\n", b.addr().unwrap());
+                let mut s = format!("{:016x}\n", b.addr().unwrap());
                 s.push_str(&b.instrs.iter().map(|ref x| &x.text).join("\n"));
                 s
             }

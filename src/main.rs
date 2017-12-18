@@ -11,7 +11,7 @@ mod base;
 
 use std::env;
 use std::fs::File;
-use std::io::{Write, Read, stdout};
+use std::io::{Read, stdout};
 use std::fmt;
 
 impl fmt::Display for Cfg {
@@ -45,18 +45,7 @@ fn main() {
     eprintln!("{}", cfg);
 
     if let Some(fname) = env::args().nth(2) {
-        let mut f = File::create(&fname).unwrap();
-        f.write_all(b"strict ").unwrap();
-        cfg.render_to(&mut f);
-        let mut content = String::new();
-        File::open(&fname)
-            .unwrap()
-            .read_to_string(&mut content)
-            .unwrap();
-        File::create(&fname)
-            .unwrap()
-            .write_all(content.replace("MAG", "\"").as_bytes())
-            .unwrap();
+        cfg.render_to(&mut File::create(fname).unwrap());
     } else {
         cfg.render_to(&mut stdout());
     }
